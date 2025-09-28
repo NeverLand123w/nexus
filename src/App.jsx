@@ -1,6 +1,7 @@
 // src/App.jsx
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header'; // Import the new Header
+import UploadPage from './pages/UploadPage'; // Import the UploadPage
 
 const Home = () => <h2>Home Page (Feed)</h2>;
 const Upload = () => <h2>Upload Page</h2>;
