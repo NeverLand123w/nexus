@@ -14,7 +14,7 @@ function App() {
       <div style={{ padding: '1rem' }}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/upload" element={<Upload />} />
+          <Route path="/upload" element={<UploadPage />} />
           <Route path="/watch/:videoId" element={<Watch />} />
         </Routes>
       </div>
