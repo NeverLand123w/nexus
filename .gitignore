@@ -25,5 +25,16 @@ dist-ssr
 
 #gitignore_global
 .env
+.env.local
+.env.*.local
+.env.production.local
+.env.test.local
+.env.development.local
+.env.production
+.env.test
+.env.development
+.env.*.production
+.env.*.test
+.env.*.development
 
 .vercel
