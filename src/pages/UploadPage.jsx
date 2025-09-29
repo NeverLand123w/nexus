@@ -3,6 +3,10 @@ import React, { useState } from 'react';
 import axios from 'axios';
 
 const VITE_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const VITE_API_KEY = import.meta.env.VITE_CLOUDINARY_API_KEY;
+
+console.log('Frontend Env Vars:', { VITE_CLOUD_NAME, VITE_API_KEY });
+
 
 function UploadPage() {
   const [title, setTitle] = useState('');
@@ -15,46 +19,43 @@ function UploadPage() {
     setVideoFile(e.target.files[0]);
   };
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!videoFile || !title) {
       alert('Please select a video file and provide a title.');
       return;
     }
+
     setUploading(true);
 
     try {
-      // Step 1: Request the simplified signature
-      const { data: signatureData } = await axios.get('../../api/videos/sign-upload');
-      const { signature, timestamp } = signatureData;
+      // Step 1: Request signature
+      const { data: { signature, timestamp } } = await axios.post('../../api/videos/sign-upload');
 
-      // Step 2: Create a FormData object. ONLY include parameters that were signed.
+      // This log must EXACTLY match the one on the backend!
+      console.log('Sending these params from the FRONTEND:', {
+        timestamp: timestamp, // We got this from the backend
+        folder: 'nexus-videos', // This is hardcoded
+      });
+
+      // Step 2: Create FormData
       const formData = new FormData();
       formData.append('file', videoFile);
-      formData.append('api_key', import.meta.env.VITE_CLOUDINARY_API_KEY);
-
-      // --- CRITICAL CHANGE ---
-      // Match the backend EXACTLY. We are only sending timestamp and signature now.
-      // We REMOVED the 'folder' parameter for this test.
+      formData.append('api_key', VITE_API_KEY);
       formData.append('timestamp', timestamp);
       formData.append('signature', signature);
-
-      // Context is NOT part of the signature, so it's fine to keep.
+      formData.append('folder', 'nexus-videos');
       formData.append('context', `title=${title}|description=${description}`);
 
-      // LOG THE FORM DATA WE ARE ABOUT TO SEND
-      console.log("--- Sending to Cloudinary ---");
+      // Let's log the entire FormData object to see everything
+      console.log("--- FormData Content ---");
       for (let pair of formData.entries()) {
-        // Don't log the file content itself
-        if (pair[0] !== 'file') {
-          console.log(pair[0] + ': ' + pair[1]);
-        }
+        console.log(pair[0] + ': ' + pair[1]);
       }
-      console.log("----------------------------");
+      console.log("------------------------");
 
-      // Step 3: Make the POST request to Cloudinary
-      const uploadUrl = `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/video/upload`;
+      // Step 3: Make the direct POST request
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${VITE_CLOUD_NAME}/video/upload`;
 
       const uploadResponse = await axios.post(uploadUrl, formData, {
         onUploadProgress: (progressEvent) => {

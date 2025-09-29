@@ -1,7 +1,14 @@
 // api/videos/sign-upload.js
 import { v2 as cloudinary } from 'cloudinary';
 
-// This configuration part should be correct if your .env file is being read
+// First, log your credentials to make sure they're loaded
+console.log('Backend Cloudinary Config:', {
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  // Be careful logging the secret in public logs, but it's okay for vercel dev
+  api_secret: process.env.CLOUDINARY_API_SECRET ? 'Loaded' : 'NOT LOADED', 
+});
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -10,24 +17,21 @@ cloudinary.config({
 });
 
 export default async function handler(request, response) {
-    try {
-      const timestamp = Math.round((new Date).getTime()/1000);
-      
-      // LOG THE PARAMS YOU ARE SIGNING
-      console.log('Signing parameters:', { timestamp });
+    const timestamp = Math.round((new Date).getTime()/1000);
 
-      // Generate a signature using ONLY the timestamp
-      const signature = cloudinary.utils.api_sign_request(
-        { timestamp: timestamp }, 
-        process.env.CLOUDINARY_API_SECRET
-      );
+    // Explicitly define the parameters we are signing
+    const paramsToSign = {
+      timestamp: timestamp,
+      folder: 'nexus-videos',
+    };
+    
+    // Log them! This is the most important log.
+    console.log('Signing these params on the BACKEND:', paramsToSign);
 
-      console.log('Generated signature:', signature);
-      
-      response.status(200).json({ signature, timestamp });
-
-    } catch (error) {
-        console.error("Error signing upload:", error);
-        response.status(500).json({ error: "Could not sign upload request." });
-    }
+    const signature = cloudinary.utils.api_sign_request(
+      paramsToSign, // Use the object here
+      process.env.CLOUDINARY_API_SECRET
+    );
+    
+    response.status(200).json({ signature, timestamp });
 }
