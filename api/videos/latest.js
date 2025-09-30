@@ -12,7 +12,7 @@ export default async function handler(request, response) {
     }
 
     try {
-        // A LEFT JOIN gets video data AND the uploader's name and avatar in one efficient query.
+        // Join videos and users to get all needed info
         const result = await dbClient.execute(`
             SELECT 
                 v.id, 
@@ -30,21 +30,22 @@ export default async function handler(request, response) {
             LIMIT 20;
         `);
 
-        // LibSQL client returns data in a slightly different format than some other drivers.
-        // We need to map the result into a simple array of objects.
-        const videos = result.rows.map(row => ({
-            id: row.id,
-            title: row.title,
-            thumbnail_url: row.thumbnail_url, // This might be null for now
-            created_at: row.created_at,
-            channel_name: row.channel_name,
-            channel_avatar: row.channel_avatar
-        }));
-        
+        // Log raw result to inspect the structure
+        console.log("Raw DB result:", JSON.stringify(result, null, 2));
+
+        // Safer mapping: use column names
+        const videos = result.rows.map(row => {
+            const videoObj = {};
+            result.columns.forEach((col, index) => {
+                videoObj[col] = row[index];
+            });
+            return videoObj;
+        });
+
         return response.status(200).json(videos);
 
     } catch (error) {
         console.error('Failed to fetch latest videos:', error);
-        return response.status(500).json({ message: 'Internal Server Error' });
+        return response.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
 }
