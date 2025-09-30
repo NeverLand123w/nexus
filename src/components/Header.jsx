@@ -1,39 +1,51 @@
-// src/components/Header.jsx
+import React, { useContext } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import { UserContext } from '../context/UserContext'; // Import our context
 
 const Header = () => {
+  const { user, setUser, logout, isLoggedIn, loading } = useContext(UserContext);
+
   const handleLoginSuccess = async (credentialResponse) => {
-    console.log(credentialResponse);
     const accessToken = credentialResponse.credential;
-    
-    // This is where you'll send the token to your backend
     try {
-      const response = await axios.post('/api/auth/google', { token: accessToken });
-      console.log('Backend response:', response.data);
-      // Here you would typically save the user session (e.g., in context or local storage)
-      alert(`Welcome, ${response.data.user.name}!`);
+        await setUser(accessToken);
     } catch (error) {
-      console.error('Login failed:', error);
+        console.error("Failed during login process:", error);
     }
   };
 
   const handleLoginError = () => {
     console.log('Login Failed');
   };
+  
+  // Render nothing or a loading spinner while checking session
+  if (loading) {
+    return (
+       <nav style={{ padding: '1rem', borderBottom: '1px solid #ccc', height: '60px' }}>
+          <p>Loading...</p>
+       </nav>
+    );
+  }
 
   return (
-    <nav style={{ padding: '1rem', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between' }}>
+    <nav style={{ padding: '1rem', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
         <Link to="/" style={{ marginRight: '1rem' }}>Home</Link>
-        <Link to="/upload">Upload</Link>
+        {isLoggedIn && <Link to="/upload">Upload</Link>} {/* Only show upload if logged in */}
       </div>
       <div>
-        <GoogleLogin onSuccess={handleLoginSuccess} onError={handleLoginError} />
+        {isLoggedIn ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <p style={{margin: 0}}>Welcome, {user.name}!</p>
+                <img src={user.avatar_url} alt={user.name} style={{ width: 40, height: 40, borderRadius: '50%' }} />
+                <button onClick={logout}>Logout</button>
+            </div>
+        ) : (
+            <GoogleLogin onSuccess={handleLoginSuccess} onError={handleLoginError} />
+        )}
       </div>
     </nav>
   );
 };
-
 export default Header;

@@ -1,62 +1,83 @@
-// api/videos/cloudinary-webhook.js
 import { createClient } from '@libsql/client';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid'; // Use npm install uuid
 
+// Initialize Turso DB Client
 const dbClient = createClient({
     url: process.env.TURSO_DATABASE_URL,
     authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
-export default async function handler(request, response) {
-  // TODO: Add webhook security verification in production!
-
-  if (request.method !== 'POST') {
-    return response.status(405).send('Method Not Allowed');
-  }
-
-  try {
-    const data = request.body;
-
-    // Check if it's a successful video upload notification
-    if (data.notification_type === 'upload' && data.resource_type === 'video') {
-      const {
-        public_id,
-        secure_url,
-        playback_url,
-        duration,
-        width,
-        height,
-        context // this is where we get our custom metadata!
-      } = data;
-      
-      const title = context?.custom?.title || 'Untitled Video';
-      const description = context?.custom?.description || '';
-      
-      // We'll need the user's ID here. This is a challenge!
-      // For now, we'll need to update our upload flow to pass it.
-      // A good way is to add it to the 'context' as well.
-      // const userId = context?.custom?.userId;
-
-      // TODO: Replace with the actual userId
-      const temporaryUserId = 'google-oauth2|...'; // Get a real user ID from your `users` table
-      if(!temporaryUserId) {
-        console.error("No user ID found in webhook context!");
-        return response.status(400).send("Bad Request: Missing userId");
-      }
-
-      const videoId = uuidv4();
-
-      await dbClient.execute({
-        sql: `INSERT INTO videos (id, title, description, cloudinary_url, duration, user_id) VALUES (?, ?, ?, ?, ?, ?);`,
-        args: [videoId, title, description, secure_url, Math.round(duration), temporaryUserId],
-      });
-      
-      console.log(`Successfully inserted video ${videoId} for user ${temporaryUserId}`);
+// Helper function to safely parse context string: "key1=value1|key2=value2"
+const parseContext = (contextString) => {
+    const context = {};
+    if (typeof contextString === 'string') {
+        contextString.split('|').forEach(part => {
+            const [key, ...valueParts] = part.split('=');
+            if (key) {
+                context[key] = valueParts.join('=');
+            }
+        });
     }
-    
-    return response.status(200).send('Webhook received');
-  } catch (error) {
-    console.error('Webhook error:', error);
-    return response.status(500).send('Internal Server Error');
-  }
+    return context;
+};
+
+export default async function handler(request, response) {
+    // We only accept POST requests
+    if (request.method !== 'POST') {
+        return response.status(405).json({ message: 'Method Not Allowed' });
+    }
+
+    console.log("Webhook received. Body:", JSON.stringify(request.body, null, 2));
+
+    try {
+        const data = request.body;
+
+        // Verify it's a notification for a successful video upload
+        if (data.resource_type !== 'video' || data.notification_type !== 'upload') {
+            console.log("Skipping notification: Not a video upload.");
+            return response.status(200).json({ message: 'Notification skipped.' });
+        }
+        
+        const { secure_url, duration, context } = data;
+        
+        // Safely parse custom metadata we sent from the frontend
+        const customContext = parseContext(context?.custom);
+        const title = customContext.title || 'Untitled Video';
+        const description = customContext.description || '';
+        const userId = customContext.userId;
+
+        // This is the most important validation step
+        if (!userId) {
+            console.error("CRITICAL: Webhook received without userId in context.");
+            // 400 Bad Request indicates the client (our uploader) made a mistake
+            return response.status(400).json({ message: 'Bad Request: userId is missing from upload context.' });
+        }
+        
+        // Generate a new unique ID for our video record
+        const videoId = uuidv4();
+        
+        await dbClient.execute({
+            sql: `
+                INSERT INTO videos (id, title, description, cloudinary_url, duration, user_id) 
+                VALUES (:id, :title, :description, :cloudinary_url, :duration, :user_id);
+            `,
+            args: {
+                id: videoId,
+                title,
+                description,
+                cloudinary_url: secure_url,
+                duration: Math.round(duration || 0),
+                user_id: userId
+            },
+        });
+        
+        console.log(`Successfully saved video ${videoId} for user ${userId}`);
+        
+        return response.status(200).json({ message: 'Video saved successfully' });
+
+    } catch (error) {
+        console.error('Error processing webhook:', error);
+        // A 500 error indicates a problem on our end (e.g., DB connection)
+        return response.status(500).json({ message: 'Internal Server Error' });
+    }
 }
