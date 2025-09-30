@@ -1,9 +1,9 @@
-// src/pages/UploadPage.jsx
 import React, { useState } from 'react';
 import axios from 'axios';
 
+// Get the required variables from your .env.local file
 const VITE_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const VITE_API_KEY = import.meta.env.VITE_CLOUDINARY_API_KEY; // We need the API Key here too
+const VITE_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 function UploadPage() {
   const [title, setTitle] = useState('');
@@ -26,45 +26,28 @@ function UploadPage() {
     setUploading(true);
 
     try {
-        // Step 1: Request a signature from our backend
-        const { data: { signature, timestamp } } = await axios.post('../../api/videos/sign-upload');
-        
-        // Step 2: Create a FormData object for the upload
-        const formData = new FormData();
-        formData.append('file', videoFile);
-        formData.append('api_key', VITE_API_KEY); // Your public API Key
-        formData.append('timestamp', timestamp);
-        formData.append('signature', signature);
-        formData.append('folder', 'nexus-videos'); // Must match folder in the backend signature
-        
-        // We pass the other metadata via a 'context' field
-        // This is a powerful feature for sending metadata.
-        formData.append('context', `title=${title}|description=${description}`);
+      const formData = new FormData();
+      formData.append('file', videoFile);
+      formData.append('upload_preset', VITE_UPLOAD_PRESET); // This is the KEY for unsigned uploads
+      formData.append('context', `title=${title}|description=${description}`);
 
-        // Step 3: Make the direct POST request to Cloudinary's API
-        const uploadUrl = `https://api.cloudinary.com/v1_1/${VITE_CLOUD_NAME}/video/upload`;
-        
-        const uploadResponse = await axios.post(uploadUrl, formData, {
-            onUploadProgress: (progressEvent) => {
-                const progress = Math.round((progressEvent.loaded / progressEvent.total) * 100);
-                setUploadProgress(progress);
-            },
-        });
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${VITE_CLOUD_NAME}/video/upload`;
 
-        console.log('Upload successful:', uploadResponse.data);
-        alert('Video uploaded successfully! It will appear on the site once processed.');
+      const uploadResponse = await axios.post(uploadUrl, formData, {
+        onUploadProgress: (progressEvent) => {
+          const progress = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+          setUploadProgress(progress);
+        },
+      });
 
-        // Reset form
-        setTitle('');
-        setDescription('');
-        setVideoFile(null);
-        setUploadProgress(0);
+      console.log('Upload successful:', uploadResponse.data);
+      alert('Video uploaded successfully! It will appear on the site once processed.');
 
     } catch (error) {
-        console.error('Upload failed:', error);
-        alert('Upload failed. Please try again.');
+      console.error('Upload failed:', error.response?.data || error.message);
+      alert('Upload failed. Please check the console and try again.');
     } finally {
-        setUploading(false);
+      setUploading(false);
     }
   };
 
@@ -86,10 +69,10 @@ function UploadPage() {
         </div>
 
         {uploading && (
-            <div>
-                <p>Uploading... {uploadProgress}%</p>
-                <progress value={uploadProgress} max="100" style={{ width: '100%' }} />
-            </div>
+          <div>
+            <p>Uploading... {uploadProgress}%</p>
+            <progress value={uploadProgress} max="100" style={{ width: '100%' }} />
+          </div>
         )}
 
         <button type="submit" disabled={uploading}>

@@ -1,25 +1,22 @@
 // src/App.jsx
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Header from './components/Header'; // Import the new Header
-import UploadPage from './pages/UploadPage'; // Import the UploadPage
-
-const Home = () => <h2>Home Page (Feed)</h2>;
-const Upload = () => <h2>Upload Page</h2>;
-const Watch = () => <h2>Watch Page</h2>;
+import Header from './components/Header';
+import HomePage from './pages/HomePage';     // Import HomePage
+import UploadPage from './pages/UploadPage';
+import WatchPage from './pages/WatchPage';    // Import WatchPage
 
 function App() {
   return (
     <Router>
-      <Header /> {/* Use the Header component */}
-      <div style={{ padding: '1rem' }}>
+      <Header />
+      <div style={{ padding: '1rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<HomePage />} />        {/* Use HomePage */}
           <Route path="/upload" element={<UploadPage />} />
-          <Route path="/watch/:videoId" element={<Watch />} />
+          <Route path="/watch/:videoId" element={<WatchPage />} /> {/* Use WatchPage */}
         </Routes>
       </div>
     </Router>
   );
 }
-
 export default App;
