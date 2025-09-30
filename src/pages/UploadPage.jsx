@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 
 const VITE_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const VITE_API_KEY = import.meta.env.VITE_CLOUDINARY_API_KEY; // We need the API Key here too
 
 function UploadPage() {
   const [title, setTitle] = useState('');
@@ -31,12 +32,13 @@ function UploadPage() {
         // Step 2: Create a FormData object for the upload
         const formData = new FormData();
         formData.append('file', videoFile);
-        formData.append('api_key', import.meta.env.VITE_CLOUDINARY_API_KEY); // Exposed from VITE env for signed uploads
+        formData.append('api_key', VITE_API_KEY); // Your public API Key
         formData.append('timestamp', timestamp);
         formData.append('signature', signature);
-        formData.append('folder', 'nexus-videos'); // Optional: organize uploads in Cloudinary
+        formData.append('folder', 'nexus-videos'); // Must match folder in the backend signature
         
-        // We pass the other metadata via context
+        // We pass the other metadata via a 'context' field
+        // This is a powerful feature for sending metadata.
         formData.append('context', `title=${title}|description=${description}`);
 
         // Step 3: Make the direct POST request to Cloudinary's API
